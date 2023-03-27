@@ -1,21 +1,39 @@
+#server
 import network
 try:
   import usocket as socket
 except:
   import socket
+import urequests
+import socket
+#displey
+from sysfont import sysfont
+from machine import SPI
+from ST7735 import TFT
+#other tools
 from time import sleep
 from machine import Pin
-import socket
 import gc
-#gc.enable()
+gc.enable()
  
 ssid = 'picoW'
 password = '12345678'
+
+#global variable
+date = 'None'
+oldDate = 'None'
+ip = 'None'
 
 #define pin RGB
 red= Pin(11,Pin.OUT)
 green= Pin(10,Pin.OUT)
 blue= Pin(12,Pin.OUT)
+
+#difien values for displey use
+spi = SPI(0, baudrate=20000000, polarity=0, phase=0, sck=Pin(2), mosi=Pin(3), miso=Pin(4))
+tft=TFT(spi,0,7,1)
+tft.initr()
+tft.rgb(True)
 
 led = Pin("LED", Pin.OUT)
 led.off()
@@ -28,7 +46,7 @@ def get_string_value(input: bool):
 def http_get(path: str):
     try:
         url = 'http://192.168.211.239/'+path
-        response = urequests.get(url)   
+        response = urequests.requests.get(url)   
         response.close()
     except Exception as e:
         print(e)
@@ -69,7 +87,22 @@ def open_socket(ip):
     
     return connection
 
-def webpage(isOnRed, isOnGreen, isOnBlue, date):
+def saveFile(string):
+    file = open("Info.txt", "w")#changed the opening mode, which creates the file automatically
+    string = string.split("C")
+    for word in string:
+        file.write("<p>"+ word +"C</p> ")
+    #file.write(string)
+    file.close()
+    
+def loadFile():
+    try:
+        file = open("Info.txt", "r")#Try, if it doesn't exist
+        return file.read()		
+    except:
+        return 'None'
+
+def webpage(isOnRed, isOnGreen, isOnBlue):
     #Template HTML
     html = """
 <!DOCTYPE html>
@@ -172,24 +205,47 @@ def webpage(isOnRed, isOnGreen, isOnBlue, date):
                             <strong> """+ isOnBlue +""" </strong>  
                             </td>
                         </tr>
-                        <tr>
-                            <td>
-                                <p>Dato: </p>
-                            </td>
-                            <td>
-                            <strong> """+ date +""" </strong>  
-                            </td>
-                        </tr>
+                        
                     </tbody>
                 </table>
-                
+
 </body>
+<footer>
+    """+ loadFile() +"""
+</footer>
 </html>
 
             """
     return str(html)
 
-date = '0' 
+def startDisplay(date):
+    
+    size=2
+    separation = 4
+    h=0
+    #data reading
+    date = str(date)
+    tft.fill(TFT.BLACK)#clean screen
+    tft.text((0, h), "IP: ", TFT.RED, sysfont, size, nowrap=True)
+    h += sysfont["Height"]*size+separation
+    tft.text((0, h), str(ip), TFT.GREEN, sysfont, size, nowrap=True)
+    h += sysfont["Height"]*size+separation
+    tft.text((0, h), "SSID: ", TFT.RED, sysfont, size, nowrap=True)
+    h += sysfont["Height"]*size+separation
+    tft.text((0, h), ssid, TFT.GREEN, sysfont, size, nowrap=True)
+    h += sysfont["Height"]*size+separation
+    tft.text((0, h), "Temperatura: ", TFT.RED, sysfont, size, nowrap=True)
+    h += sysfont["Height"]*size+separation
+    tft.text((0, h), date, TFT.GREEN, sysfont, size, nowrap=True)
+    
+def refreshDisplay(date):
+    global oldDate
+    size=2
+    #data reading
+    date = str(date)
+    tft.text((0, 100), oldDate, TFT.BLACK, sysfont, size, nowrap=True)
+    tft.text((0, 100), date, TFT.GREEN, sysfont, size, nowrap=True)
+    oldDate = date
 
 def serve(connection):
     #Start a web server
@@ -205,49 +261,73 @@ def serve(connection):
     
     
     while True:
+        
         client = connection.accept()[0]
-        request = client.recv(1024)
-        request = str(request)
+        call = client.recv(1024)
+        call = str(call)
+             
         try:
-            request = request.split()[1]
+            request = call.split()[1]
         except IndexError:
             pass
-        
         print(f'Request {request}')
         if request == '/led-r':
             red_value = not red_value
             pave = red_value
             red.value(red_value)
+                
+            client.send('HTTP/1.0 200 OK\r\nContent-type: text/html\r\n\r\n')
+            html = webpage(get_string_value(red_value),get_string_value(green_value),get_string_value(blue_value))
+            client.send(html)
         elif request == '/led-g':
             green_value = not green_value
             green.value(green_value)
+                
+            client.send('HTTP/1.0 200 OK\r\nContent-type: text/html\r\n\r\n')
+            html = webpage(get_string_value(red_value),get_string_value(green_value),get_string_value(blue_value))
+            client.send(html)
         elif request == '/led-b':
             blue_value = not blue_value
             blue.value(blue_value)
+                
+            client.send('HTTP/1.0 200 OK\r\nContent-type: text/html\r\n\r\n')
+            html = webpage(get_string_value(red_value),get_string_value(green_value),get_string_value(blue_value))
+            client.send(html)
         elif request.startswith('/date:'):
             date = request.lstrip('/date:')#remove /date:
-            
-            
-        html = webpage(get_string_value(red_value),get_string_value(green_value),get_string_value(blue_value), date)
-        client.send('HTTP/1.1 200 OK\n')
-        client.send('Content-Type: text/html\n')
-        client.send('Connection: close\n\n')
-        client.send(html)
+            refreshDisplay(date)
+                
+            client.send('HTTP/1.0 200 OK\r\nContent-type: text/html\r\n\r\n')
+        elif request == '/text:':
+            print('entro')
+            try:
+                start = call.index('/text: ') #get position start
+                end = call.index('endText') #get position end
+                substring = call[start + len('/text:'):end] #get sub string 
+                saveFile(str(substring))
+            except IndexError:
+                pass
+                
+            client.send('HTTP/1.0 200 OK\r\nContent-type: text/html\r\n\r\n')
+            html = webpage(get_string_value(red_value),get_string_value(green_value),get_string_value(blue_value))
+            client.send(html)
+        else:
+            client.send('HTTP/1.0 200 OK\r\nContent-type: text/html\r\n\r\n')
+            html = webpage(get_string_value(red_value),get_string_value(green_value),get_string_value(blue_value))
+            client.send(html)
         client.close()
-        #print(f'Memory: {gc.mem_free()}')
+        print(gc.mem_free())
 
 def runServer():
     try:
+        global ip
+        global date
         ip = accesPoint()
         connection = open_socket(ip)
-        #temperature = http_get("")
-        #print(temperature)
+        startDisplay(date)
         serve(connection)
+        
     except KeyboardInterrupt:
         machine.reset()
 
 runServer()
-
-
-
-
