@@ -1,5 +1,5 @@
 # server_picoW
 web server with raspberry pi pico w
-![circuito](https://github.com/EulisesBrazon/server_picoW/blob/main/Circuito.jpg)
+![circuito](https://github.com/EulisesBrazon/server_picoW/blob/comunicacion_entre_dos_pico/Circuito.jpg)
 
-cada bot髇 corresponde con una petici髇 distinta, para la manipulaci髇 de los colores r,g,b en esta misma petici髇 se aprovecha para enviar una nueva lectura de temperatura, el bot髇 n鷐ero 4 se utiliza para para enviar un peque駉 archivo de texto de un pico w a otro, que puede ser visualizado a trav閟 una peque馻 p醙ina web alojada en el pico servidor (esta c骴igo es una mezcla de dos proyectos distintos cada uno con su documentaci髇 por separada, pero que hacen uso de las mismas conexiones).
+cada bot贸n corresponde con una petici贸n distinta, para la manipulaci贸n de los colores r,g,b en esta misma petici贸n se aprovecha para enviar una nueva lectura de temperatura, el bot贸n n煤mero 4 se utiliza para para enviar un peque帽o archivo de texto de un pico w a otro, que puede ser visualizado a trav茅s una peque帽a p谩gina web alojada en el pico servidor (esta c贸digo es una mezcla de dos proyectos distintos cada uno con su documentaci贸n por separada, pero que hacen uso de las mismas conexiones).
